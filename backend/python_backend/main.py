@@ -211,6 +211,64 @@ async def get_transaction(transaction_id: str):
         print(f"Error fetching transaction: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.get("/v1/transactions")
+async def get_all_transactions(limit: int = 100, offset: int = 0):
+    """
+    Get all transactions with pagination
+    
+    Query Parameters:
+    - limit: Number of transactions to return (default: 100, max: 1000)
+    - offset: Number of transactions to skip (default: 0)
+    """
+    try:
+        # Limit max to prevent abuse
+        limit = min(limit, 1000)
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            """
+            SELECT * FROM transactions 
+            ORDER BY created_at DESC 
+            LIMIT %s OFFSET %s
+            """,
+            (limit, offset)
+        )
+        
+        transactions = cursor.fetchall()
+        
+        # Get total count
+        cursor.execute("SELECT COUNT(*) FROM transactions")
+        total = cursor.fetchone()["count"]
+        
+        cursor.close()
+        conn.close()
+        
+        return {
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "count": len(transactions),
+            "transactions": [
+                {
+                    "transaction_id": t["transaction_id"],
+                    "source_account": t["source_account"],
+                    "destination_account": t["destination_account"],
+                    "amount": float(t["amount"]),
+                    "currency": t["currency"],
+                    "status": t["status"],
+                    "created_at": t["created_at"].isoformat() + "Z",
+                    "processed_at": t["processed_at"].isoformat() + "Z" if t["processed_at"] else None
+                }
+                for t in transactions
+            ]
+        }
+        
+    except Exception as e:
+        print(f"Error fetching transactions: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
