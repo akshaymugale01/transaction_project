@@ -197,7 +197,17 @@ async def receive_webhook(
             print(f"✅ Webhook accepted: {webhook.transaction_id} ({response_time:.2f}ms)")
         
         # Return 202 Accepted immediately (within 500ms requirement)
-        return {"message": "Accepted"}
+        return {
+            "message": "Accepted",
+            "transaction": {
+            "transaction_id": webhook.transaction_id,
+            "source_account": webhook.source_account,
+            "destination_account": webhook.destination_account,
+            "amount": webhook.amount,
+            "currency": webhook.currency,
+            "status": "PROCESSING"
+            }
+        }
         
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
