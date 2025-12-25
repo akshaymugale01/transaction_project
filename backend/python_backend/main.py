@@ -38,6 +38,44 @@ def get_db():
     """Get database connection"""
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
+def create_tables():
+    """Create database tables if they don't exist"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS transactions (
+                id SERIAL PRIMARY KEY,
+                transaction_id VARCHAR(255) UNIQUE NOT NULL,
+                source_account VARCHAR(255) NOT NULL,
+                destination_account VARCHAR(255) NOT NULL,
+                amount DECIMAL(10, 2) NOT NULL,
+                currency VARCHAR(3) NOT NULL,
+                status VARCHAR(50) NOT NULL DEFAULT 'PROCESSING',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                processed_at TIMESTAMP NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_transaction_id ON transactions(transaction_id);
+            CREATE INDEX IF NOT EXISTS idx_status ON transactions(status);
+            CREATE INDEX IF NOT EXISTS idx_created_at ON transactions(created_at);
+        """)
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("✅ Database tables ready")
+        
+    except Exception as e:
+        print(f"❌ Error creating tables: {e}")
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    create_tables()
+
 # Request/Response models
 class WebhookRequest(BaseModel):
     transaction_id: str = Field(..., description="Unique transaction identifier")
