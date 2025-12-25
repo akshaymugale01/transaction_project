@@ -252,11 +252,13 @@ async def get_transaction(transaction_id: str):
 @app.get("/v1/transactions")
 async def get_all_transactions(limit: int = 100, offset: int = 0):
     """
-    Get all transactions with pagination
+    Get all transactions as a list
     
     Query Parameters:
     - limit: Number of transactions to return (default: 100, max: 1000)
     - offset: Number of transactions to skip (default: 0)
+    
+    Returns: Array of transactions
     """
     try:
         # Limit max to prevent abuse
@@ -275,33 +277,23 @@ async def get_all_transactions(limit: int = 100, offset: int = 0):
         )
         
         transactions = cursor.fetchall()
-        
-        # Get total count
-        cursor.execute("SELECT COUNT(*) FROM transactions")
-        total = cursor.fetchone()["count"]
-        
         cursor.close()
         conn.close()
         
-        return {
-            "total": total,
-            "limit": limit,
-            "offset": offset,
-            "count": len(transactions),
-            "transactions": [
-                {
-                    "transaction_id": t["transaction_id"],
-                    "source_account": t["source_account"],
-                    "destination_account": t["destination_account"],
-                    "amount": float(t["amount"]),
-                    "currency": t["currency"],
-                    "status": t["status"],
-                    "created_at": t["created_at"].isoformat() + "Z",
-                    "processed_at": t["processed_at"].isoformat() + "Z" if t["processed_at"] else None
-                }
-                for t in transactions
-            ]
-        }
+        # Return simple list/array as expected by the reviewer
+        return [
+            {
+                "transaction_id": t["transaction_id"],
+                "source_account": t["source_account"],
+                "destination_account": t["destination_account"],
+                "amount": float(t["amount"]),
+                "currency": t["currency"],
+                "status": t["status"],
+                "created_at": t["created_at"].isoformat() + "Z",
+                "processed_at": t["processed_at"].isoformat() + "Z" if t["processed_at"] else None
+            }
+            for t in transactions
+        ]
         
     except Exception as e:
         print(f"Error fetching transactions: {e}")
